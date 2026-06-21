@@ -40,3 +40,47 @@
 
 \- Decision needed on Day 3: whether to drop or separately handle the \~243K rows missing Customer ID.
 
+
+
+\## Day 3 — Cleaning the Data
+
+
+
+Before touching the raw file, I wrote out a plan for how I'd handle each issue found on Day 2, so the cleaning wasn't just random deletions but a documented set of decisions.
+
+
+
+\*\*Duplicates:\*\* Found 34,335 rows that were exact copies of another row — same invoice, product, quantity, date, price, customer, everything. These aren't real repeat purchases, just an export/data entry error, so I dropped them.
+
+
+
+\*\*Negative and zero price rows:\*\* I actually checked these manually before deciding anything. The 5 negative-price rows all had the description "Adjust bad debt" — clearly internal accounting corrections, not real sales. The zero-price rows (6,019 of them) mostly had negative quantities and descriptions like "short" or "mixed," which look like inventory/stock adjustments rather than legitimate transactions (e.g. free promo items would still usually have a description that says so). I removed both groups for the same reason — they're not real customer transactions.
+
+
+
+\*\*Cancelled orders:\*\* 19,104 invoices start with "C," meaning they were cancelled. I didn't delete these — they're real business events and matter later when I look at revenue leakage. Instead I added a new column, `is\_cancelled`, so they can be filtered in or out depending on the analysis.
+
+
+
+\*\*Missing product descriptions:\*\* 4,382 rows had no description. Quantity, price, and customer info were all fine, so I just filled these with "Unknown" instead of dropping the row.
+
+
+
+\*\*Missing Customer ID:\*\* This was the biggest issue — about 23% of rows have no customer attached. Since I can't do customer-level analysis (RFM, churn, lifetime value) without knowing who the customer is, I split the data into two files:
+
+\- `sales\_clean\_full.csv` (1,027,017 rows) — includes everything, used for revenue-level totals
+
+\- `sales\_clean\_customer\_level.csv` (797,815 rows) — only rows with a known Customer ID, used for anything customer-specific
+
+
+
+\*\*New columns added:\*\*
+
+\- `is\_cancelled` — flags cancelled orders
+
+\- `TotalPrice` — Quantity × Price, needed for basically every revenue calculation from here on
+
+
+
+All of this logic lives in `src/etl/clean.py`, so the cleaning can be re-run end-to-end any time, rather than being a one-off manual edit.
+
